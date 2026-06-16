@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saharat Masaard - พอร์ตโฟลิโอ 3D ขับรถอัตโนมัติ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Sukhumvit Set', 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #87CEEB; 
+        }
+
+        #webgl-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            outline: none;
+            z-index: 1;
+        }
+
+        /* ส่วนควบคุมข้อความหลักลอยบนหน้าจอ */
+        .ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+        }
+
+        .interactive-element {
+            pointer-events: auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: inline-block;
+            width: max-content;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            color: #1a1a1a;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 800;
+        }
+
+        .header .subtitle {
+            font-size: 1rem;
+            color: #4a5568;
+            margin-top: 5px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .header .lang-switcher {
+            margin-top: 15px;
+        }
+
+        .header .lang-switcher button {
+            background: none;
+            border: 2px solid #1a1a1a;
+            border-radius: 6px;
+            padding: 5px 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .header .lang-switcher button.active, 
+        .header .lang-switcher button:hover {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            color: #1a1a1a;
+            font-size: 0.85rem;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .contact-info p { margin-top: 5px; }
+
+        /* สไตล์ป้ายข้อความ 3D HTML ข้างทางแบบป้ายรถเมล์สุดล้ำ */
+        .three-sign-board {
+            position: absolute;
+            z-index: 5;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #2d3748;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            white-space: nowrap;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            display: none; 
+            transition: opacity 0.2s ease;
+        }
+
+        .three-sign-board::before {
+            content: attr(data-station);
+            display: inline-block;
+            font-size: 0.7rem;
+            color: #fff;
+            background: #1a1a1a;
+            padding: 3px 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .three-sign-board::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: rgba(255,255,255,0.85) transparent transparent transparent;
+        }
+
+        .three-sign-board.ai-type { border-bottom: 4px solid #3b82f6; }
+        .three-sign-board.web-type { border-bottom: 4px solid #10b981; }
+
+        /* 🔥 สไตล์ POPUP (MODAL) รายละเอียดโปรเจคตอนรถจอด */
+        .project-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(6px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .project-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .project-modal-content {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            padding: 35px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            transform: translateY(30px) scale(0.95);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .project-modal-overlay.active .project-modal-content {
+            transform: translateY(0) scale(1);
+        }
+
+        /* 🖼️ สไตล์ POPUP (MODAL) แกลเลอรีรูปภาพ */
+        .gallery-content {
+            position: relative;
+            width: 90%;
+            max-width: 900px; /* ขยายให้ใหญ่ขึ้นสำหรับรูปภาพ */
+            background: rgba(30, 30, 30, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: translateY(30px) scale(0.95);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .project-modal-overlay.active .gallery-content {
+            transform: translateY(0) scale(1);
+        }
+
+        .gallery-image-container {
+            width: 100%;
+            aspect-ratio: 16 / 9; 
+            background-color: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        #gallery-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* แสดงรูปภาพเต็มๆ ไม่ให้โดนตัด */
+            transition: opacity 0.2s ease;
+        }
+
+        .gallery-close-btn {
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            background: #fff;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 24px;
+            line-height: 36px;
+            text-align: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .gallery-close-btn:hover {
+            transform: scale(1.1) rotate(90deg);
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .gallery-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .gallery-nav-btn:hover {
+            background: #fff;
+            transform: translateY(-50%) scale(1.05);
+        }
+        .gallery-nav-btn.prev { left: 30px; }
+        .gallery-nav-btn.next { right: 30px; }
+        .gallery-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .gallery-counter {
+            text-align: center;
+            font-size: 1rem;
+            color: #e2e8f0;
+            font-weight: 700;
+        }
+
+        .modal-station-tag {
+            font-size: 0.75rem;
+            background: #3b82f6;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        .modal-station-tag.web-theme { background: #10b981; }
+
+        .project-modal-content h2 {
+            font-size: 1.6rem;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-weight: 800;
+            line-height: 1.4;
+        }
+
+        .project-modal-content p {
+            font-size: 0.95rem;
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .modal-action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn-modal {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            flex: 1;
+        }
+
+        .btn-view-project {
+            background: #1a1a1a;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .btn-view-project:hover {
+            background: #333333;
+            transform: translateY(-2px);
+        }
+
+        .btn-close-project {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        .btn-close-project:hover {
+            background: #cbd5e1;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .ui-container { padding: 15px; }
+            .header { width: 100%; }
+            .header h1 { font-size: 1.4rem; }
+            .footer { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .project-modal-content { padding: 25px 20px; }
+            .modal-action-buttons { flex-direction: column; }
+            .gallery-content { padding: 10px; }
+            .gallery-nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 22px;
+            }
+            .gallery-nav-btn.prev { left: 15px; }
+            .gallery-nav-btn.next { right: 15px; }
+            .gallery-close-btn { top: -10px; right: -10px; width: 30px; height: 30px; line-height: 30px; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <canvas id="webgl-canvas"></canvas>
+    <div id="html-signs-container"></div>
+
+    <div class="ui-container">
+        <header class="header interactive-element">
+            <h1 id="main-title">Saharat Masaard</h1>
+            <div id="subtitle" class="subtitle">วิศวกรรมคอมพิวเตอร์ // พอร์ตโฟลิโอขับเคลื่อนอัตโนมัติ</div>
+            <div class="lang-switcher">
+                <button id="lang-th" class="active">TH</button>
+                <button id="lang-en">EN</button>
+            </div>
+        </header>
+
+        <footer class="footer interactive-element">
+            <div class="contact-info">
+                <p id="contact-phone">📞 เบอร์โทรศัพท์: 093-784-7000</p>
+                <p id="contact-email">✉️ อีเมล: saharat.mas@psru.ac.th</p>
+                <p id="contact-address">📍 ที่อยู่: ต.วัดจันทร์ อ.เมือง จ.พิษณุโลก</p>
+            </div>
+            <div style="text-align: right;">
+                <p id="copyright-text">&copy; 2026 SAHARAT. M</p>
+            </div>
+        </footer>
+    </div>
+
+    <div id="project-modal" class="project-modal-overlay">
+        <div class="project-modal-content">
+            <div id="modal-badge" class="modal-station-tag">STATION 01</div>
+            <h2 id="modal-title">ชื่อโปรเจค</h2>
+            <p id="modal-description">รายละเอียดโปรเจคย่อยจะแสดงที่นี่...</p>
+            <div class="modal-action-buttons">
+                <button id="btn-view" class="btn-modal btn-view-project">ดูรายละเอียดโปรเจค</button>
+                <button id="btn-close" class="btn-modal btn-close-project">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🖼️ POPUP แกลเลอรีรูปภาพโปรเจค -->
+    <div id="image-gallery-modal" class="project-modal-overlay">
+        <div class="gallery-content">
+            <button id="gallery-close" class="gallery-close-btn">&times;</button>
+            <div class="gallery-image-container">
+                <img id="gallery-image" src="" alt="Project Image">
+            </div>
+            <div id="gallery-counter" class="gallery-counter"></div>
+            <button id="gallery-prev" class="gallery-nav-btn prev">&lt;</button>
+            <button id="gallery-next" class="gallery-nav-btn next">&gt;</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. SETUP SCENE & RENDERER ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2('#87CEEB', 0.02);
+        
+        const sizes = { width: window.innerWidth, height: window.innerHeight };
+
+        const canvas = document.querySelector('#webgl-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setClearColor('#87CEEB'); 
+
+        // --- 2. LIGHTS ---
+        const ambientLight = new THREE.AmbientLight('#ffffff', 0.65);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight('#ffffff', 1.2);
+        sunLight.position.set(20, 40, 15);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.left = -30;
+        sunLight.shadow.camera.right = 30;
+        sunLight.shadow.camera.top = 30;
+        sunLight.shadow.camera.bottom = -30;
+        scene.add(sunLight);
+
+        // --- 3. CAMERA SYSTEM ---
+        const camera = new THREE.PerspectiveCamera(60, sizes.width / sizes.height, 0.1, 150);
+        scene.add(camera);
+
+        // --- 4. ENVIRONMENT (FLOOR, ROAD & TRACKS) ---
+        const floorGeo = new THREE.CircleGeometry(50, 64);
+        const floorMat = new THREE.MeshStandardMaterial({ color: '#7cb342', roughness: 0.9 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI * 0.5;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        const roadRadius = 16;
+        const roadWidth = 4;
+        const roadMat = new THREE.MeshStandardMaterial({ color: '#333333', roughness: 0.7 });
+        const road = new THREE.Mesh(new THREE.RingGeometry(roadRadius - roadWidth/2, roadRadius + roadWidth/2, 64), roadMat);
+        road.rotation.x = -Math.PI * 0.5;
+        road.position.y = 0.01; 
+        road.receiveShadow = true;
+        scene.add(road);
+
+        const curbMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.8 });
+        const innerCurb = new THREE.Mesh(new THREE.RingGeometry(roadRadius - roadWidth/2 - 0.3, roadRadius - roadWidth/2, 64), curbMat);
+        innerCurb.rotation.x = -Math.PI * 0.5;
+        innerCurb.position.y = 0.03;
+        scene.add(innerCurb);
+
+        const outerCurb = new THREE.Mesh(new THREE.RingGeometry(roadRadius + roadWidth/2, roadRadius + roadWidth/2 + 0.3, 64), curbMat);
+        outerCurb.rotation.x = -Math.PI * 0.5;
+        outerCurb.position.y = 0.03;
+        scene.add(outerCurb);
+
+        // เส้นประจราจรขาวกลางถนน
+        for(let i = 0; i < 40; i++) {
+            const angle = (i / 40) * Math.PI * 2;
+            const line = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.02, 0.15), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+            line.position.set(Math.cos(angle) * roadRadius, 0.02, Math.sin(angle) * roadRadius);
+            line.rotation.y = -angle;
+            scene.add(line);
+        }
+
+        // --- 5. BUILD THE 3D BUS ---
+        const carContainer = new THREE.Group();
+        scene.add(carContainer);
+
+        const bodyMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', roughness: 0.3 });
+        const busBody = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 3.8), bodyMat);
+        busBody.position.y = 0.8;
+        busBody.castShadow = true;
+        carContainer.add(busBody);
+
+        const windowMat = new THREE.MeshStandardMaterial({ color: '#225588', roughness: 0.2, metalness: 0.2 });
+        const leftWindow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 2.8), windowMat); leftWindow.position.set(-0.7, 1, 0); carContainer.add(leftWindow);
+        const rightWindow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 2.8), windowMat); rightWindow.position.set(0.7, 1, 0); carContainer.add(rightWindow);
+        const frontWindow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 0.05), windowMat); frontWindow.position.set(0, 1, 1.9); carContainer.add(frontWindow);
+
+        const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.41, 0.2, 3.8), new THREE.MeshStandardMaterial({ color: '#ef4444' }));
+        stripe.position.y = 0.8;
+        carContainer.add(stripe);
+
+        function createDetailedWheel() {
+            const wheelGroup = new THREE.Group();
+            const tire = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.1, 16, 32), new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.8 }));
+            tire.rotation.y = Math.PI * 0.5; tire.castShadow = true; wheelGroup.add(tire);
+            const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.22, 16), new THREE.MeshStandardMaterial({ color: '#777777', metalness: 0.5 }));
+            rim.rotation.y = Math.PI * 0.5; rim.castShadow = true; wheelGroup.add(rim);
+            return wheelGroup;
+        }
+
+        const wheels = [];
+        const wheelPositions = [[-0.75, 0.25, 1.3], [0.75, 0.25, 1.3], [-0.75, 0.25, -1.3], [0.75, 0.25, -1.3]];
+        wheelPositions.forEach((pos) => {
+            const wheel = createDetailedWheel(); wheel.position.set(pos[0], pos[1], pos[2]); carContainer.add(wheel); wheels.push(wheel);
+        });
+
+        // --- 6. BUS STATIONS CONFIGURATION ---
+        const signObjects = [];
+        const htmlContainer = document.getElementById('html-signs-container');
+
+        // ข้อมูลพิกัดป้ายรถเมล์แต่ละจุด (หน่วยองศา) พร้อมข้อมูลคีย์ของโปรเจค
+        const stationsData = [
+            // ปรับองศาใหม่ทั้งหมดเพื่อให้มี 5 สถานีที่ระยะห่างเท่ากัน (360 / 5 = 72 องศา)
+            { angleDeg: 72 * 0, textId: "sign-ai-med-image", class: "ai-type", code: "STATION 01", type: "ai", images: ["1.png", "2.png"] },
+            { angleDeg: 72 * 1, textId: "sign-ai-chatbot", class: "ai-type", code: "STATION 02", type: "ai", images: ["7.png", "6.png"] },
+            { angleDeg: 72 * 2, textId: "sign-web-food-order", class: "web-type", code: "STATION 03", type: "web", images: ["8.png", "9.png", "10.png"] },
+            { angleDeg: 72 * 3, textId: "sign-web-dorm-management", class: "web-type", code: "STATION 04", type: "web", images: ["3.png", "4.png", "5.png"] },
+            // --- สถานีที่ 5 ที่เพิ่มเข้ามาใหม่ ---
+            { angleDeg: 72 * 4, textId: "sign-new-project", class: "web-type", code: "STATION 05", type: "web", images: ["11.png", "12.png"] }
+        ];
+
+        function createBusStopSign(station) {
+            const angleRad = THREE.MathUtils.degToRad(station.angleDeg);
+            const placementRadius = roadRadius + 2.8; 
+            const x = Math.cos(angleRad) * placementRadius;
+            const z = Math.sin(angleRad) * placementRadius;
+
+            const group = new THREE.Group();
+            group.position.set(x, 0, z);
+
+            const base = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 1.5), new THREE.MeshStandardMaterial({ color: '#a0aec0', roughness: 0.9 }));
+            base.position.y = 0.05; base.castShadow = true; group.add(base);
+
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.2, 16), new THREE.MeshStandardMaterial({ color: '#4a5568', metalness: 0.6 }));
+            pole.position.y = 1.1; pole.castShadow = true; group.add(pole);
+
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 1.4), new THREE.MeshStandardMaterial({ color: '#2d3748' }));
+            frame.position.y = 2.0; frame.castShadow = true; group.add(frame);
+
+            const stopLight = new THREE.PointLight(0xfff5e1, 0.8, 6);
+            stopLight.position.set(0, 2.5, 0); group.add(stopLight);
+
+            group.lookAt(0, 0, 0);
+            scene.add(group);
+
+            const div = document.createElement('div');
+            div.className = `three-sign-board ${station.class} sign-board`;
+            div.dataset.textId = station.textId;
+            div.setAttribute('data-station', station.code);
+            htmlContainer.appendChild(div);
+
+            signObjects.push({
+                threePosition: new THREE.Vector3(x, 3.2, z),
+                element: div
+            });
+        }
+
+        stationsData.forEach(station => createBusStopSign(station));
+
+        // สร้างต้นไม้ประดับฉาก
+        function createTree(x, z) {
+            const tree = new THREE.Group(); tree.position.set(x, 0, z);
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 1.2, 8), new THREE.MeshStandardMaterial({color: '#5c4033'})); trunk.position.y = 0.6; tree.add(trunk);
+            const leaves = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.5, 6), new THREE.MeshStandardMaterial({color: '#2e8b57', roughness: 0.9})); leaves.position.y = 2.0; leaves.castShadow = true; tree.add(leaves);
+            scene.add(tree);
+        }
+        createTree(-8, -8); createTree(8, -8); createTree(-8, 8); createTree(8, 8);
+        createTree(0, 9); createTree(9, 0); createTree(0, -9); createTree(-9, 0);
+
+        // --- 7. MOUSE DRAG CAMERA CONTROL ---
+        let targetOffsetX = 0, targetOffsetY = 0;
+        let currentOffsetX = 0, currentOffsetY = 0;
+        let isDragging = false;
+
+        window.addEventListener('mousedown', () => { isDragging = true; });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        window.addEventListener('mousemove', (event) => {
+            if (isDragging) {
+                targetOffsetX -= event.movementX * 0.007;
+                targetOffsetY += event.movementY * 0.005;
+                targetOffsetY = Math.max(-0.4, Math.min(0.6, targetOffsetY));
+            }
+        });
+
+        // --- 8. LANGUAGE SYSTEM & TRANSLATIONS ---
+        let currentLang = 'th';
+        let currentActiveStationIdx = 0; // เก็บลำดับสถานีปัจจุบันที่รถจอดอยู่
+
+        const translations = {
+            th: {
+                'subtitle': 'วิศวกรรมคอมพิวเตอร์ // พอร์ตโฟลิโอ',
+                'contact-phone': '📞 เบอร์โทรศัพท์: 093-784-7000',
+                'contact-email': '✉️ อีเมล: saharat.mas@psru.ac.th',
+                'contact-address': '📍 ที่อยู่: ต.วัดจันทร์ อ.เมือง จ.พิษณุโลก',
+                'copyright-text': '&copy; 2026 SAHARAT. M',
+                'sign-ai-med-image': '🤖 โครงการ AI วิเคราะห์โรคจากภาพถ่าย',
+                'sign-ai-chatbot': '💬 แชทบอทอัจฉริยะ (Custom Knowledge Base)',
+                'sign-web-food-order': '🛒 ระบบสั่งอาหารออนไลน์ + Sync Google Sheets',
+                'sign-web-dorm-management': '🏢 ระบบจัดการหอพัก & คำนวณบิลอัตโนมัติ',
+                'sign-new-project': '️ เว็บร้านอาหาร & ระบบสะสมแต้มจากใบเสร็จ',
+                // คำแปลเพิ่มเติมสำหรับ Popup
+                'btn-view': 'ดูรายละเอียดโปรเจค 🚀',
+                'btn-close': 'เดินทางต่อ 🚌',
+                'desc-ai-med-image': 'ระบบปัญญาประดิษฐ์ (Deep Learning) พัฒนาขึ้นมาเพื่อช่วยคัดกรองโรคเบื้องต้นจากภาพเอ็กซ์เรย์ทางการแพทย์ เพิ่มความแม่นยำและช่วยแบ่งเบาภาระงานของรังสีแพทย์ในการวิเคราะห์ผลภาพถ่ายอย่างมีประสิทธิภาพ',
+                'desc-ai-chatbot': 'ระบบแชทบอทตอบคำถามอัจฉริยะองค์กร เชื่อมต่อฐานข้อมูลองค์ความรู้แบบเฉพาะ (RAG - Retrieval-Augmented Generation) สามารถตอบคำถามเชิงลึกได้อย่างถูกต้องแม่นยำ ไม่หลุดกรอบข้อมูล',
+                'desc-web-food-order': 'เว็บแอปพลิเคชันจัดการคำสั่งซื้ออาหารแบบ Real-time รองรับการสรุปยอด บันทึกประวัติ และซิงค์ข้อมูลหลังบ้านส่งตรงเข้าสู่ระบบ Google Sheets ทันที เพื่อง่ายต่อการนำไปวิเคราะห์สถิติต่อไป',
+                'desc-web-dorm-management': 'ระบบ Full-stack จัดการธุรกิจหอพักและห้องเช่า ครอบคลุมตั้งแต่การเก็บบันทึกสัญญาเช่า ค่าน้ำ ค่าไฟ และการประมวลผลคำนวณออกบิลใบแจ้งหนี้ส่งตรงให้ผู้เช่าโดยอัตโนมัติในแต่ละเดือน',
+                'desc-new-project': 'เว็บแอปพลิเคชันสำหรับร้านอาหาร ที่ลูกค้าสามารถอัปโหลดรูปภาพใบเสร็จเพื่อเปลี่ยนเป็นคะแนนสะสมสำหรับใช้เป็นส่วนลดหรือแลกของรางวัลในครั้งถัดไป'
+            },
+            en: {
+                'subtitle': 'Computer Engineering // Portfolio',
+                'contact-phone': '📞 Phone: 093-784-7000',
+                'contact-email': '✉️ Email: saharat.mas@psru.ac.th',
+                'contact-address': '📍 Address: Wat Chan, Mueang, Phitsanulok',
+                'copyright-text': '&copy; 2026 SAHARAT. M',
+                'sign-ai-med-image': '🤖 AI for Medical Image Diagnosis',
+                'sign-ai-chatbot': '💬 Intelligent Chatbot (Custom Knowledge Base)',
+                'sign-web-food-order': '🛒 Online Food Ordering + Google Sheets Sync',
+                'sign-web-dorm-management': '🏢 Dormitory Management & Auto Bill Generation',
+                'sign-new-project': '🍽️ Restaurant Web App & Receipt Rewards',
+                // คำแปลเพิ่มเติมสำหรับ Popup
+                'btn-view': 'View Project 🚀',
+                'btn-close': 'Resume Drive 🚌',
+                'desc-ai-med-image': 'A deep learning computer vision system designed to screen diseases from medical X-ray imaging, accelerating radiological workflows and improving diagnostic precision.',
+                'desc-ai-chatbot': 'An enterprise-grade smart chatbot utilizing Retrieval-Augmented Generation (RAG) to fetch precise technical answers from a custom internal corporate knowledge base without hallucination.',
+                'desc-web-food-order': 'A real-time food ordering web application feature-packed with instant administrative dashboard synchronization to Google Sheets for ease of data collection and sales metrics.',
+                'desc-web-dorm-management': 'Comprehensive Full-stack property management system specializing in lease recording, utilities tracking, and automated digital monthly invoice billing calculations for tenants.',
+                'desc-new-project': 'A web application for restaurants where customers can upload receipt photos to earn loyalty points, which can be redeemed for discounts or rewards on future visits.'
+            }
+        };
+
+        const langThButton = document.getElementById('lang-th');
+        const langEnButton = document.getElementById('lang-en');
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            const trans = translations[lang];
+            for (const id in trans) {
+                const element = document.getElementById(id) || document.querySelector(`[data-text-id="${id}"]`);
+                if (element) { element.innerHTML = trans[id]; }
+            }
+            document.querySelectorAll('.sign-board').forEach(el => {
+                if(trans[el.dataset.textId]) el.innerHTML = trans[el.dataset.textId];
+            });
+            
+            // อัปเดตคำในปุ่มของโมดอลด้วย
+            document.getElementById('btn-view').innerHTML = trans['btn-view'];
+            document.getElementById('btn-close').innerHTML = trans['btn-close'];
+            
+            // อัปเดตข้อความในโมดอลปัจจุบันที่จอดอยู่
+            updateModalText(currentActiveStationIdx);
+
+            langThButton.classList.toggle('active', lang === 'th');
+            langEnButton.classList.toggle('active', lang === 'en');
+        }
+
+        langThButton.addEventListener('click', () => setLanguage('th'));
+        langEnButton.addEventListener('click', () => setLanguage('en'));
+
+
+        // --- 9. POPUP CONTROL ENGINE (MODAL) ---
+        const modalOverlay = document.getElementById('project-modal');
+        const modalBadge = document.getElementById('modal-badge');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-description');
+        const btnView = document.getElementById('btn-view');
+        const btnClose = document.getElementById('btn-close');
+
+        // 🖼️ Gallery Modal Elements & State
+        const galleryModal = document.getElementById('image-gallery-modal');
+        const galleryImage = document.getElementById('gallery-image');
+        const galleryCloseBtn = document.getElementById('gallery-close');
+        const galleryNextBtn = document.getElementById('gallery-next');
+        const galleryPrevBtn = document.getElementById('gallery-prev');
+        const galleryCounter = document.getElementById('gallery-counter');
+        let currentProjectImages = [];
+        let currentImageIndex = 0;
+
+        function updateModalText(stationIdx) {
+            const station = stationsData[stationIdx];
+            const trans = translations[currentLang];
+            
+            modalBadge.innerHTML = station.code;
+            modalBadge.className = `modal-station-tag ${station.type === 'web' ? 'web-theme' : ''}`;
+            modalTitle.innerHTML = trans[station.textId];
+            
+            // ผูกคำอธิบายตามคีย์สถานี เช่น desc-ai-med-image
+            const descKey = "desc-" + station.textId.replace("sign-", "");
+            modalDesc.innerHTML = trans[descKey] || "";
+        }
+
+        function triggerStationStop(stationIdx) {
+            isCarStopped = true;
+            currentActiveStationIdx = stationIdx;
+            updateModalText(stationIdx);
+            modalOverlay.classList.add('active');
+        }
+
+        // เมื่อกดปุ่ม "ปิด" หรือ "เดินทางต่อ" ให้รถวิ่งต่อไปยังสถานีหน้า
+        btnClose.addEventListener('click', () => {
+            modalOverlay.classList.remove('active');
+            // หน่วงเวลาให้ Popup ค่อยๆ เฟดหายไปก่อนรถเริ่มเคลื่อนตัวแบบนุ่มนวล
+            setTimeout(() => {
+                isCarStopped = false;
+            }, 300);
+        });
+
+        // 🖼️ --- Gallery Logic ---
+        function showImage(index) {
+            galleryImage.style.opacity = 0; // เริ่ม Fade Out
+
+            setTimeout(() => {
+                galleryImage.src = currentProjectImages[index];
+                galleryCounter.textContent = `${index + 1} / ${currentProjectImages.length}`;
+                galleryImage.style.opacity = 1; // Fade In รูปใหม่
+            }, 150);
+
+            galleryPrevBtn.disabled = index === 0;
+            galleryNextBtn.disabled = index === currentProjectImages.length - 1;
+        }
+
+        function openImageGallery() {
+            const station = stationsData[currentActiveStationIdx];
+            currentProjectImages = station.images || [];
+
+            if (currentProjectImages.length === 0) {
+                alert('ขออภัย โครงการนี้ยังไม่มีรูปภาพตัวอย่าง');
+                return;
+            }
+
+            currentImageIndex = 0;
+            showImage(currentImageIndex);
+            galleryModal.classList.add('active');
+            modalOverlay.classList.remove('active'); // ซ่อน modal เดิม
+        }
+
+        function closeImageGallery() {
+            galleryModal.classList.remove('active');
+            setTimeout(() => { galleryImage.src = ""; }, 400); // เคลียร์ src หลังจากปิด
+            // กลับไปแสดง modal หลักของโปรเจค
+            modalOverlay.classList.add('active');
+        }
+
+        // เมื่อกดปุ่ม "ดูรายละเอียดโปรเจค" จะเป็นการเปิด Gallery
+        btnView.addEventListener('click', openImageGallery);
+
+        galleryCloseBtn.addEventListener('click', closeImageGallery);
+        galleryNextBtn.addEventListener('click', () => { if (currentImageIndex < currentProjectImages.length - 1) { currentImageIndex++; showImage(currentImageIndex); } });
+        galleryPrevBtn.addEventListener('click', () => { if (currentImageIndex > 0) { currentImageIndex--; showImage(currentImageIndex); } });
+
+
+
+        // --- 10. AUTONOMOUS STATION DRIVING ENGINE & TICK LOOP ---
+        const clock = new THREE.Clock();
+        
+        let carAngle = -0.5;          // มุมการวิ่งปัจจุบัน (เริ่มก่อนสถานีแรกเล็กน้อยเพื่อให้รถวิ่งโชว์ตอนเริ่ม)
+        let isCarStopped = false;     // สถานะเบรกของรถบัส
+        let nextStationIdx = 0;       // ดัชนีป้ายสถานีถัดไปที่รถต้องแวะ
+        let baseAngleCycles = 0;      // เก็บรอบจำนวนการวิ่งวนลูปถนน
+
+        // แปลงมุมสถานีจากองศาเป็นเรเดียน
+        const stationAnglesRad = stationsData.map(s => THREE.MathUtils.degToRad(s.angleDeg));
+
+        const tick = () => {
+            const deltaTime = clock.getDelta(); // คํานวณเวลาที่เปลี่ยนไปในแต่ละเฟรม
+
+            if (!isCarStopped) {
+                const carSpeed = 0.2; // ความเร็วของตัวรถบัสในการเดินทาง
+                carAngle += carSpeed * deltaTime;
+
+                // คํานวณเป้าหมายมุมของสถานีถัดไป (บวกเพิ่มรอบวงกลมเมื่อวิ่งครบ 360 องศา)
+                let targetStationAngle = stationAnglesRad[nextStationIdx] + baseAngleCycles * Math.PI * 2;
+                
+                // ถ้ารถวิ่งถึงหรือเลยพิกัดป้ายรถเมล์ให้สั่งหยุดทันที
+                if (carAngle >= targetStationAngle) {
+                    carAngle = targetStationAngle; // ล็อคตำแหน่งรถให้จอดตรงเป้าป้ายพอดีเป๊ะ
+                    
+                    // เรียกเปิดป๊อปอัพสถานีนั้นๆ
+                    triggerStationStop(nextStationIdx);
+                    
+                    // คำนวณเซ็ตคิวป้ายสถานีต่อไปล่วงหน้า
+                    nextStationIdx++;
+                    if (nextStationIdx >= stationsData.length) {
+                        nextStationIdx = 0;
+                        baseAngleCycles++; // วิ่งขึ้นรอบวงกลมลูปถัดไป
+                    }
+                }
+            }
+
+            // คำนวณขยับพิกัดรถบัสบนวงแหวนถนน
+            const carX = Math.cos(carAngle) * roadRadius;
+            const carZ = Math.sin(carAngle) * roadRadius;
+            carContainer.position.set(carX, 0, carZ);
+            carContainer.rotation.y = -carAngle; 
+
+            // ล้อหมุนสเปินเฉพาะตอนที่รถบัสกำลังวิ่งเท่านั้น
+            if (!isCarStopped) {
+                wheels.forEach((wheel) => {
+                    wheel.rotation.x += 4.5 * deltaTime;
+                });
+            }
+
+            // ระบบกล้องมองหลังสปริงตัวตามรถ
+            if (!isDragging) {
+                targetOffsetX += (0 - targetOffsetX) * 0.04;
+                targetOffsetY += (0.1 - targetOffsetY) * 0.04; 
+            }
+            currentOffsetX += (targetOffsetX - currentOffsetX) * 0.1;
+            currentOffsetY += (targetOffsetY - currentOffsetY) * 0.1;
+
+            const cameraHeading = -carAngle + Math.PI + currentOffsetX;
+            const cameraPitch = 0.5 + currentOffsetY; 
+            const followDistance = 8.5;
+
+            const camX = carContainer.position.x + Math.sin(cameraHeading) * Math.cos(cameraPitch) * followDistance;
+            const camY = carContainer.position.y + Math.sin(cameraPitch) * followDistance + 0.5;
+            const camZ = carContainer.position.z + Math.cos(cameraHeading) * Math.cos(cameraPitch) * followDistance;
+
+            camera.position.set(camX, camY, camZ);
+            camera.lookAt(carContainer.position.clone().add(new THREE.Vector3(0, 0.8, 0)));
+
+            // อัปเดตป้ายข้อความลอยตัว 2D HTML บนสเปซพิกัดโลก 3D
+            const tempV = new THREE.Vector3();
+            signObjects.forEach((sign) => {
+                tempV.copy(sign.threePosition);
+                tempV.project(camera); 
+
+                if (tempV.z <= 1) {
+                    const x = (tempV.x * .5 + .5) * sizes.width;
+                    const y = (tempV.y * -.5 + .5) * sizes.height;
+                    const distanceToCar = carContainer.position.distanceTo(sign.threePosition);
+                    
+                    // ป้ายจะค่อยๆ จางเห็นชัดเจนที่สุดเมื่อรถบัสเคลื่อนไปจอดเทียบท่า
+                    if(distanceToCar < 16) {
+                        sign.element.style.opacity = 1 - (distanceToCar - 9) / 7;
+                        sign.element.style.transform = `translate(-50%, -100%) translate(${x}px,${y}px) scale(${Math.min(1, 15/Math.max(1, distanceToCar))})`;
+                        sign.element.style.display = 'block';
+                    } else {
+                        sign.element.style.opacity = 0;
+                        setTimeout(() => { if(sign.element.style.opacity == 0) sign.element.style.display = 'none'; }, 200);
+                    }
+                } else {
+                    sign.element.style.display = 'none';
+                }
+            });
+
+            renderer.render(scene, camera);
+            window.requestAnimationFrame(tick);
+        };
+
+        // เริ่มต้นการทำงานระบบลูป
+        tick();
+
+        // ตั้งค่าภาษาไทยเริ่มต้น
+        setLanguage('th'); 
+        
+        // 11. WINDOW RESIZE RESPONSIVE
+        window.addEventListener('resize', () => {
+            sizes.width = window.innerWidth;
+            sizes.height = window.innerHeight;
+            camera.aspect = sizes.width / sizes.height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(sizes.width, sizes.height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+    </script>
+</body>
+</html>
