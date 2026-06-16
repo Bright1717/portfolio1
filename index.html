@@ -25,6 +25,8 @@
             left: 0;
             outline: none;
             z-index: 1;
+            /* สำคัญมากสำหรับมือถือ: ป้องกันไม่ให้เบราว์เซอร์เลื่อนหน้าจอเวลาเราปัดนิ้วหมุนกล้อง */
+            touch-action: none; 
         }
 
         /* ส่วนควบคุมข้อความหลักลอยบนหน้าจอ */
@@ -360,22 +362,73 @@
             transform: translateY(-2px);
         }
 
+        /* เลย์เอาต์สำหรับโทรศัพท์มือถือ */
         @media (max-width: 768px) {
-            .ui-container { padding: 15px; }
-            .header { width: 100%; }
-            .header h1 { font-size: 1.4rem; }
-            .footer { flex-direction: column; align-items: flex-start; gap: 15px; }
-            .project-modal-content { padding: 25px 20px; }
-            .modal-action-buttons { flex-direction: column; }
-            .gallery-content { padding: 10px; }
-            .gallery-nav-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 22px;
+            .ui-container { 
+                padding: 15px; 
             }
-            .gallery-nav-btn.prev { left: 15px; }
-            .gallery-nav-btn.next { right: 15px; }
-            .gallery-close-btn { top: -10px; right: -10px; width: 30px; height: 30px; line-height: 30px; }
+            .header { 
+                width: 100%; 
+                text-align: center;
+                padding: 15px;
+            }
+            .header h1 { 
+                font-size: 1.5rem; 
+            }
+            .header .subtitle { 
+                font-size: 0.85rem; 
+            }
+            .header .lang-switcher {
+                margin-top: 10px;
+            }
+            
+            .footer { 
+                flex-direction: column; 
+                align-items: center; 
+                text-align: center;
+                gap: 10px; 
+                padding: 12px;
+            }
+            .footer p {
+                font-size: 0.75rem;
+            }
+            
+            .project-modal-content { 
+                padding: 20px 15px; 
+            }
+            .project-modal-content h2 {
+                font-size: 1.3rem;
+            }
+            .project-modal-content p {
+                font-size: 0.85rem;
+                margin-bottom: 15px;
+            }
+            .modal-action-buttons { 
+                flex-direction: column; 
+                gap: 8px;
+            }
+            .btn-modal {
+                padding: 10px 15px;
+            }
+            
+            .gallery-content { 
+                padding: 10px; 
+            }
+            .gallery-nav-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 18px;
+            }
+            .gallery-nav-btn.prev { left: 5px; }
+            .gallery-nav-btn.next { right: 5px; }
+            .gallery-close-btn { 
+                top: -10px; 
+                right: -10px; 
+                width: 30px; 
+                height: 30px; 
+                line-height: 30px; 
+                font-size: 20px;
+            }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -419,7 +472,6 @@
         </div>
     </div>
 
-    <!-- 🖼️ POPUP แกลเลอรีรูปภาพโปรเจค -->
     <div id="image-gallery-modal" class="project-modal-overlay">
         <div class="gallery-content">
             <button id="gallery-close" class="gallery-close-btn">&times;</button>
@@ -543,12 +595,10 @@
 
         // ข้อมูลพิกัดป้ายรถเมล์แต่ละจุด (หน่วยองศา) พร้อมข้อมูลคีย์ของโปรเจค
         const stationsData = [
-            // ปรับองศาใหม่ทั้งหมดเพื่อให้มี 5 สถานีที่ระยะห่างเท่ากัน (360 / 5 = 72 องศา)
             { angleDeg: 72 * 0, textId: "sign-ai-med-image", class: "ai-type", code: "STATION 01", type: "ai", images: ["1.png", "2.png"] },
             { angleDeg: 72 * 1, textId: "sign-ai-chatbot", class: "ai-type", code: "STATION 02", type: "ai", images: ["7.png", "6.png"] },
             { angleDeg: 72 * 2, textId: "sign-web-food-order", class: "web-type", code: "STATION 03", type: "web", images: ["8.png", "9.png", "10.png"] },
             { angleDeg: 72 * 3, textId: "sign-web-dorm-management", class: "web-type", code: "STATION 04", type: "web", images: ["3.png", "4.png", "5.png"] },
-            // --- สถานีที่ 5 ที่เพิ่มเข้ามาใหม่ ---
             { angleDeg: 72 * 4, textId: "sign-new-project", class: "web-type", code: "STATION 05", type: "web", images: ["11.png", "12.png"] }
         ];
 
@@ -600,11 +650,12 @@
         createTree(-8, -8); createTree(8, -8); createTree(-8, 8); createTree(8, 8);
         createTree(0, 9); createTree(9, 0); createTree(0, -9); createTree(-9, 0);
 
-        // --- 7. MOUSE DRAG CAMERA CONTROL ---
+        // --- 7. MOUSE & TOUCH DRAG CAMERA CONTROL ---
         let targetOffsetX = 0, targetOffsetY = 0;
         let currentOffsetX = 0, currentOffsetY = 0;
         let isDragging = false;
 
+        // สำหรับ Mouse (คอมพิวเตอร์)
         window.addEventListener('mousedown', () => { isDragging = true; });
         window.addEventListener('mouseup', () => { isDragging = false; });
         window.addEventListener('mousemove', (event) => {
@@ -614,6 +665,37 @@
                 targetOffsetY = Math.max(-0.4, Math.min(0.6, targetOffsetY));
             }
         });
+
+        // สำหรับ Touch (โทรศัพท์มือถือและแท็บเล็ต)
+        let previousTouch = null;
+
+        window.addEventListener('touchstart', (event) => {
+            // เช็คว่าไม่ได้กดบนปุ่มหรือ UI อื่นๆ
+            if (event.target.tagName !== 'BUTTON' && !event.target.closest('.interactive-element') && !event.target.closest('.project-modal-content') && !event.target.closest('.gallery-content')) {
+                isDragging = true;
+                previousTouch = event.touches[0];
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+            previousTouch = null;
+        });
+
+        window.addEventListener('touchmove', (event) => {
+            if (isDragging && previousTouch) {
+                const currentTouch = event.touches[0];
+                const movementX = currentTouch.pageX - previousTouch.pageX;
+                const movementY = currentTouch.pageY - previousTouch.pageY;
+
+                targetOffsetX -= movementX * 0.007;
+                targetOffsetY += movementY * 0.005;
+                // ล็อคขอบเขตมุมก้มเงย
+                targetOffsetY = Math.max(-0.4, Math.min(0.6, targetOffsetY));
+
+                previousTouch = currentTouch;
+            }
+        }, { passive: false });
 
         // --- 8. LANGUAGE SYSTEM & TRANSLATIONS ---
         let currentLang = 'th';
@@ -631,7 +713,6 @@
                 'sign-web-food-order': '🛒 ระบบสั่งอาหารออนไลน์ + Sync Google Sheets',
                 'sign-web-dorm-management': '🏢 ระบบจัดการหอพัก & คำนวณบิลอัตโนมัติ',
                 'sign-new-project': '️ เว็บร้านอาหาร & ระบบสะสมแต้มจากใบเสร็จ',
-                // คำแปลเพิ่มเติมสำหรับ Popup
                 'btn-view': 'ดูรายละเอียดโปรเจค 🚀',
                 'btn-close': 'เดินทางต่อ 🚌',
                 'desc-ai-med-image': 'ระบบปัญญาประดิษฐ์ (Deep Learning) พัฒนาขึ้นมาเพื่อช่วยคัดกรองโรคเบื้องต้นจากภาพเอ็กซ์เรย์ทางการแพทย์ เพิ่มความแม่นยำและช่วยแบ่งเบาภาระงานของรังสีแพทย์ในการวิเคราะห์ผลภาพถ่ายอย่างมีประสิทธิภาพ',
@@ -651,7 +732,6 @@
                 'sign-web-food-order': '🛒 Online Food Ordering + Google Sheets Sync',
                 'sign-web-dorm-management': '🏢 Dormitory Management & Auto Bill Generation',
                 'sign-new-project': '🍽️ Restaurant Web App & Receipt Rewards',
-                // คำแปลเพิ่มเติมสำหรับ Popup
                 'btn-view': 'View Project 🚀',
                 'btn-close': 'Resume Drive 🚌',
                 'desc-ai-med-image': 'A deep learning computer vision system designed to screen diseases from medical X-ray imaging, accelerating radiological workflows and improving diagnostic precision.',
@@ -676,11 +756,9 @@
                 if(trans[el.dataset.textId]) el.innerHTML = trans[el.dataset.textId];
             });
             
-            // อัปเดตคำในปุ่มของโมดอลด้วย
             document.getElementById('btn-view').innerHTML = trans['btn-view'];
             document.getElementById('btn-close').innerHTML = trans['btn-close'];
             
-            // อัปเดตข้อความในโมดอลปัจจุบันที่จอดอยู่
             updateModalText(currentActiveStationIdx);
 
             langThButton.classList.toggle('active', lang === 'th');
@@ -717,7 +795,6 @@
             modalBadge.className = `modal-station-tag ${station.type === 'web' ? 'web-theme' : ''}`;
             modalTitle.innerHTML = trans[station.textId];
             
-            // ผูกคำอธิบายตามคีย์สถานี เช่น desc-ai-med-image
             const descKey = "desc-" + station.textId.replace("sign-", "");
             modalDesc.innerHTML = trans[descKey] || "";
         }
@@ -729,10 +806,8 @@
             modalOverlay.classList.add('active');
         }
 
-        // เมื่อกดปุ่ม "ปิด" หรือ "เดินทางต่อ" ให้รถวิ่งต่อไปยังสถานีหน้า
         btnClose.addEventListener('click', () => {
             modalOverlay.classList.remove('active');
-            // หน่วงเวลาให้ Popup ค่อยๆ เฟดหายไปก่อนรถเริ่มเคลื่อนตัวแบบนุ่มนวล
             setTimeout(() => {
                 isCarStopped = false;
             }, 300);
@@ -740,12 +815,12 @@
 
         // 🖼️ --- Gallery Logic ---
         function showImage(index) {
-            galleryImage.style.opacity = 0; // เริ่ม Fade Out
+            galleryImage.style.opacity = 0; 
 
             setTimeout(() => {
                 galleryImage.src = currentProjectImages[index];
                 galleryCounter.textContent = `${index + 1} / ${currentProjectImages.length}`;
-                galleryImage.style.opacity = 1; // Fade In รูปใหม่
+                galleryImage.style.opacity = 1; 
             }, 150);
 
             galleryPrevBtn.disabled = index === 0;
@@ -764,17 +839,15 @@
             currentImageIndex = 0;
             showImage(currentImageIndex);
             galleryModal.classList.add('active');
-            modalOverlay.classList.remove('active'); // ซ่อน modal เดิม
+            modalOverlay.classList.remove('active'); 
         }
 
         function closeImageGallery() {
             galleryModal.classList.remove('active');
-            setTimeout(() => { galleryImage.src = ""; }, 400); // เคลียร์ src หลังจากปิด
-            // กลับไปแสดง modal หลักของโปรเจค
+            setTimeout(() => { galleryImage.src = ""; }, 400); 
             modalOverlay.classList.add('active');
         }
 
-        // เมื่อกดปุ่ม "ดูรายละเอียดโปรเจค" จะเป็นการเปิด Gallery
         btnView.addEventListener('click', openImageGallery);
 
         galleryCloseBtn.addEventListener('click', closeImageGallery);
@@ -786,54 +859,46 @@
         // --- 10. AUTONOMOUS STATION DRIVING ENGINE & TICK LOOP ---
         const clock = new THREE.Clock();
         
-        let carAngle = -0.5;          // มุมการวิ่งปัจจุบัน (เริ่มก่อนสถานีแรกเล็กน้อยเพื่อให้รถวิ่งโชว์ตอนเริ่ม)
-        let isCarStopped = false;     // สถานะเบรกของรถบัส
-        let nextStationIdx = 0;       // ดัชนีป้ายสถานีถัดไปที่รถต้องแวะ
-        let baseAngleCycles = 0;      // เก็บรอบจำนวนการวิ่งวนลูปถนน
+        let carAngle = -0.5;          
+        let isCarStopped = false;     
+        let nextStationIdx = 0;       
+        let baseAngleCycles = 0;      
 
-        // แปลงมุมสถานีจากองศาเป็นเรเดียน
         const stationAnglesRad = stationsData.map(s => THREE.MathUtils.degToRad(s.angleDeg));
 
         const tick = () => {
-            const deltaTime = clock.getDelta(); // คํานวณเวลาที่เปลี่ยนไปในแต่ละเฟรม
+            const deltaTime = clock.getDelta(); 
 
             if (!isCarStopped) {
-                const carSpeed = 0.2; // ความเร็วของตัวรถบัสในการเดินทาง
+                const carSpeed = 0.2; 
                 carAngle += carSpeed * deltaTime;
 
-                // คํานวณเป้าหมายมุมของสถานีถัดไป (บวกเพิ่มรอบวงกลมเมื่อวิ่งครบ 360 องศา)
                 let targetStationAngle = stationAnglesRad[nextStationIdx] + baseAngleCycles * Math.PI * 2;
                 
-                // ถ้ารถวิ่งถึงหรือเลยพิกัดป้ายรถเมล์ให้สั่งหยุดทันที
                 if (carAngle >= targetStationAngle) {
-                    carAngle = targetStationAngle; // ล็อคตำแหน่งรถให้จอดตรงเป้าป้ายพอดีเป๊ะ
+                    carAngle = targetStationAngle; 
                     
-                    // เรียกเปิดป๊อปอัพสถานีนั้นๆ
                     triggerStationStop(nextStationIdx);
                     
-                    // คำนวณเซ็ตคิวป้ายสถานีต่อไปล่วงหน้า
                     nextStationIdx++;
                     if (nextStationIdx >= stationsData.length) {
                         nextStationIdx = 0;
-                        baseAngleCycles++; // วิ่งขึ้นรอบวงกลมลูปถัดไป
+                        baseAngleCycles++; 
                     }
                 }
             }
 
-            // คำนวณขยับพิกัดรถบัสบนวงแหวนถนน
             const carX = Math.cos(carAngle) * roadRadius;
             const carZ = Math.sin(carAngle) * roadRadius;
             carContainer.position.set(carX, 0, carZ);
             carContainer.rotation.y = -carAngle; 
 
-            // ล้อหมุนสเปินเฉพาะตอนที่รถบัสกำลังวิ่งเท่านั้น
             if (!isCarStopped) {
                 wheels.forEach((wheel) => {
                     wheel.rotation.x += 4.5 * deltaTime;
                 });
             }
 
-            // ระบบกล้องมองหลังสปริงตัวตามรถ
             if (!isDragging) {
                 targetOffsetX += (0 - targetOffsetX) * 0.04;
                 targetOffsetY += (0.1 - targetOffsetY) * 0.04; 
@@ -852,7 +917,6 @@
             camera.position.set(camX, camY, camZ);
             camera.lookAt(carContainer.position.clone().add(new THREE.Vector3(0, 0.8, 0)));
 
-            // อัปเดตป้ายข้อความลอยตัว 2D HTML บนสเปซพิกัดโลก 3D
             const tempV = new THREE.Vector3();
             signObjects.forEach((sign) => {
                 tempV.copy(sign.threePosition);
@@ -863,7 +927,6 @@
                     const y = (tempV.y * -.5 + .5) * sizes.height;
                     const distanceToCar = carContainer.position.distanceTo(sign.threePosition);
                     
-                    // ป้ายจะค่อยๆ จางเห็นชัดเจนที่สุดเมื่อรถบัสเคลื่อนไปจอดเทียบท่า
                     if(distanceToCar < 16) {
                         sign.element.style.opacity = 1 - (distanceToCar - 9) / 7;
                         sign.element.style.transform = `translate(-50%, -100%) translate(${x}px,${y}px) scale(${Math.min(1, 15/Math.max(1, distanceToCar))})`;
@@ -881,10 +944,8 @@
             window.requestAnimationFrame(tick);
         };
 
-        // เริ่มต้นการทำงานระบบลูป
         tick();
 
-        // ตั้งค่าภาษาไทยเริ่มต้น
         setLanguage('th'); 
         
         // 11. WINDOW RESIZE RESPONSIVE
